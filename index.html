@@ -11,6 +11,7 @@
   /* Layout: grilla de fichas, una por persona; la ficha que corre se marca con el color de acento. */
   :root {
     color-scheme: light;
+    --danger: #b3261e;
     --bg: #f1f3ef;
     --card: #ffffff;
     --fg: #1a231e;
@@ -24,6 +25,7 @@
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
+      --danger: #ff8a80;
       --bg: #111715;
       --card: #1a2220;
       --fg: #e8eee9;
@@ -36,6 +38,7 @@
     }
   }
   :root[data-theme="dark"] {
+    --danger: #ff8a80;
     --bg: #111715;
     --card: #1a2220;
     --fg: #e8eee9;
@@ -207,10 +210,41 @@
     border: 1.5px solid var(--line);
     border-radius: 8px;
   }
+  .reg-cabecera {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    margin-bottom: 6px;
+  }
   .registros h2 {
-    margin: 0 0 6px;
+    margin: 0;
     font-size: 1.2rem;
     font-weight: 700;
+  }
+  .btn-limpiar {
+    width: auto;
+    min-height: 40px;
+    padding-inline: 14px;
+    margin-top: 0;
+    border-color: var(--line);
+    color: var(--muted);
+  }
+  .btn-limpiar:hover:not(:disabled) {
+    background: transparent;
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+  .btn-limpiar.confirmar,
+  .btn-limpiar.confirmar:hover:not(:disabled) {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: var(--on-accent);
+  }
+  .btn-limpiar:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
   .reg-lista {
     list-style: none;
@@ -288,7 +322,10 @@
   </header>
 
   <section class="registros" id="registros" hidden aria-labelledby="reg-titulo">
-    <h2 id="reg-titulo">Registros</h2>
+    <div class="reg-cabecera">
+      <h2 id="reg-titulo">Registros</h2>
+      <button type="button" id="btn-limpiar" class="btn-limpiar">Limpiar registros</button>
+    </div>
     <ol class="reg-lista" id="reg-lista"></ol>
   </section>
   <main class="grid" id="grid"></main>
@@ -364,6 +401,7 @@
 
   function pintarLog() {
     regLista.textContent = "";
+    btnLimpiar.disabled = !registros.length;
     if (!registros.length) {
       var vacio = document.createElement("li");
       vacio.className = "reg-vacio";
@@ -400,6 +438,30 @@
     panelReg.hidden = !abrir;
     btnReg.setAttribute("aria-expanded", abrir ? "true" : "false");
     btnReg.textContent = abrir ? "Ocultar registros" : "Registros";
+  });
+
+  // Limpiar borra solo el historial, no los tiempos. Pide tocar dos veces para evitar errores.
+  var btnLimpiar = document.getElementById("btn-limpiar");
+  var timerConfirmar = null;
+
+  function cancelarConfirmacion() {
+    clearTimeout(timerConfirmar);
+    timerConfirmar = null;
+    btnLimpiar.classList.remove("confirmar");
+    btnLimpiar.textContent = "Limpiar registros";
+  }
+
+  btnLimpiar.addEventListener("click", function () {
+    if (timerConfirmar === null) {
+      btnLimpiar.classList.add("confirmar");
+      btnLimpiar.textContent = "¿Seguro? Tocá de nuevo";
+      timerConfirmar = setTimeout(cancelarConfirmacion, 4000);
+      return;
+    }
+    cancelarConfirmacion();
+    registros = [];
+    guardarLog();
+    pintarLog();
   });
 
   var grid = document.getElementById("grid");
