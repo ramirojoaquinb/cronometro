@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cronómetros</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  /* Layout: grilla de fichas, una por persona; la ficha que corre se marca con el color de acento. */
+  :root {
+    color-scheme: light;
+    --bg: #f1f3ef;
+    --card: #ffffff;
+    --fg: #1a231e;
+    --muted: #62706a;
+    --line: #d6dcd4;
+    --accent: #0e7a4d;
+    --accent-soft: #e0f1e8;
+    --on-accent: #ffffff;
+    --font-display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111715;
+      --card: #1a2220;
+      --fg: #e8eee9;
+      --muted: #8e9c94;
+      --line: #2b3632;
+      --accent: #46d28d;
+      --accent-soft: #17352a;
+      --on-accent: #07140e;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #111715;
+    --card: #1a2220;
+    --fg: #e8eee9;
+    --muted: #8e9c94;
+    --line: #2b3632;
+    --accent: #46d28d;
+    --accent-soft: #17352a;
+    --on-accent: #07140e;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-display);
+    padding-inline: 16px;
+    padding-block: 20px 32px;
+  }
+  .wrap { max-width: 1100px; margin-inline: auto; }
+
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 16px;
+    margin-bottom: 18px;
+  }
+  h1 {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    text-wrap: balance;
+  }
+  #resumen {
+    margin: 0;
+    color: var(--muted);
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+    gap: 12px;
+  }
+
+  .ficha {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px;
+    background: var(--card);
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+  }
+  .ficha.corriendo {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .nombre {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.15;
+    text-transform: capitalize;
+    overflow-wrap: anywhere;
+  }
+  .estado {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .ficha.corriendo .estado { color: var(--accent); }
+
+  .tiempo {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: clamp(1.55rem, 7vw, 2rem);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-block: 6px 4px;
+    white-space: nowrap;
+  }
+
+  .pagar {
+    margin-top: 28px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 520px;
+    background: var(--card);
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+  }
+  .pagar h2 {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+  }
+  .pagar label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .pagar input {
+    font: inherit;
+    font-size: 1.1rem;
+    min-height: 46px;
+    width: 100%;
+    padding: 0 12px;
+    background: var(--bg);
+    color: var(--fg);
+    border: 1.5px solid var(--line);
+    border-radius: 6px;
+  }
+  .pagar input:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .pagar-cuenta {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+    min-height: 1.4em;
+    overflow-wrap: anywhere;
+  }
+  .pagar-monto {
+    font-family: var(--font-mono);
+    font-size: 2rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  button {
+    font: inherit;
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    min-height: 46px;
+    width: 100%;
+    border-radius: 6px;
+    border: 1.5px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    margin-top: auto;
+  }
+  button:hover { background: var(--accent-soft); }
+  .ficha.corriendo button {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  button:focus-visible {
+    outline: 3px solid var(--fg);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .ficha, button { transition: background-color 0.15s, border-color 0.15s; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Cronómetros</h1>
+    <p id="resumen" aria-live="polite"></p>
+  </header>
+  <main class="grid" id="grid"></main>
+
+  <section class="pagar" aria-labelledby="pagar-titulo">
+    <h2 id="pagar-titulo">¿Cuánto debo pagar?</h2>
+    <label for="buscar">Nombre</label>
+    <input id="buscar" type="text" list="lista-nombres" placeholder="Escribí un nombre" autocomplete="off" autocapitalize="none">
+    <datalist id="lista-nombres"></datalist>
+    <div class="pagar-cuenta" id="pagar-cuenta" aria-live="polite"></div>
+    <div class="pagar-monto" id="pagar-monto"></div>
+  </section>
+</div>
+
+<script>
+  var NOMBRES = ["chao", "valen perna", "rocco", "Bruno", "peque", "lucio", "bauti stabilito", "jere", "verdu", "rago", "fili", "rama", "vito", "agus"];
+  var PRECIO_MINUTO = 136;
+  var KEY = "cronometros-v1";
+
+  // estado[i] = { acc: ms acumulados, inicio: timestamp si corre, o null }
+  var estado = NOMBRES.map(function () { return { acc: 0, inicio: null }; });
+
+  try {
+    var guardado = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (guardado && guardado.length === NOMBRES.length) estado = guardado;
+  } catch (e) {}
+
+  function guardar() {
+    try { localStorage.setItem(KEY, JSON.stringify(estado)); } catch (e) {}
+  }
+
+  function total(s, ahora) {
+    return s.acc + (s.inicio === null ? 0 : ahora - s.inicio);
+  }
+
+  function dos(n) { return (n < 10 ? "0" : "") + n; }
+
+  function formato(ms) {
+    var d = Math.floor(ms / 100) % 10;
+    var seg = Math.floor(ms / 1000);
+    var h = Math.floor(seg / 3600);
+    var m = Math.floor((seg % 3600) / 60);
+    var s = seg % 60;
+    if (h > 0) return h + ":" + dos(m) + ":" + dos(s);
+    return dos(m) + ":" + dos(s) + "." + d;
+  }
+
+  var fmtMin = new Intl.NumberFormat("es-AR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  var fmtPeso = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 });
+
+  var grid = document.getElementById("grid");
+  var resumen = document.getElementById("resumen");
+  var refs = [];
+
+  NOMBRES.forEach(function (nombre, i) {
+    var ficha = document.createElement("section");
+    ficha.className = "ficha";
+
+    var h = document.createElement("h2");
+    h.className = "nombre";
+    h.textContent = nombre;
+
+    var est = document.createElement("div");
+    est.className = "estado";
+
+    var t = document.createElement("div");
+    t.className = "tiempo";
+
+    var b = document.createElement("button");
+    b.type = "button";
+    b.id = "btn-" + i;
+    b.addEventListener("click", function () {
+      var s = estado[i];
+      var ahora = Date.now();
+      if (s.inicio === null) {
+        s.inicio = ahora;
+      } else {
+        s.acc += ahora - s.inicio;
+        s.inicio = null;
+      }
+      guardar();
+      pintar();
+    });
+
+    ficha.appendChild(h);
+    ficha.appendChild(est);
+    ficha.appendChild(t);
+    ficha.appendChild(b);
+    grid.appendChild(ficha);
+    refs.push({ ficha: ficha, est: est, t: t, b: b });
+
+    var op = document.createElement("option");
+    op.value = nombre;
+    document.getElementById("lista-nombres").appendChild(op);
+  });
+
+  var buscar = document.getElementById("buscar");
+  var pCuenta = document.getElementById("pagar-cuenta");
+  var pMonto = document.getElementById("pagar-monto");
+
+  function normalizar(s) {
+    return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+  }
+
+  // Busca por nombre exacto; si no, por coincidencia parcial única.
+  function buscarIndice(texto) {
+    var q = normalizar(texto);
+    if (!q) return -1;
+    var exacto = -1;
+    var parciales = [];
+    NOMBRES.forEach(function (n, i) {
+      var nn = normalizar(n);
+      if (nn === q) exacto = i;
+      else if (nn.indexOf(q) !== -1) parciales.push(i);
+    });
+    if (exacto !== -1) return exacto;
+    return parciales.length === 1 ? parciales[0] : -1;
+  }
+
+  function actualizarPago(ahora) {
+    var texto = buscar.value;
+    var i = buscarIndice(texto);
+    if (i === -1) {
+      pCuenta.textContent = texto.trim() ? "No encuentro ese nombre." : "Elegí un nombre para ver cuánto debe pagar.";
+      pMonto.textContent = "";
+      return;
+    }
+    var minutos = total(estado[i], ahora) / 60000;
+    var monto = Math.round(minutos * PRECIO_MINUTO / 10) * 10; // redondeo a la decena
+    pCuenta.textContent = NOMBRES[i] + ": " + fmtMin.format(minutos) + " min × " + PRECIO_MINUTO + " = " + fmtPeso.format(Math.round(minutos * PRECIO_MINUTO));
+    pMonto.textContent = "Pagar $" + fmtPeso.format(monto);
+  }
+
+  buscar.addEventListener("input", function () { actualizarPago(Date.now()); });
+
+  function pintar() {
+    var ahora = Date.now();
+    var corriendo = 0;
+    estado.forEach(function (s, i) {
+      var r = refs[i];
+      var va = s.inicio !== null;
+      if (va) corriendo++;
+      r.ficha.classList.toggle("corriendo", va);
+      r.t.textContent = formato(total(s, ahora));
+      r.est.textContent = va ? "Corriendo" : (s.acc > 0 ? "En pausa" : "Sin iniciar");
+      var texto = va ? "Pausar" : (s.acc > 0 ? "Reanudar" : "Iniciar");
+      if (r.b.textContent !== texto) r.b.textContent = texto;
+      r.b.setAttribute("aria-label", texto + " " + NOMBRES[i]);
+    });
+    resumen.textContent = corriendo + " de " + NOMBRES.length + " corriendo";
+    actualizarPago(ahora);
+  }
+
+  pintar();
+  setInterval(pintar, 100);
+</script>
+</body>
+</html>
