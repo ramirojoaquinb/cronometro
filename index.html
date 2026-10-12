@@ -186,6 +186,69 @@
     white-space: nowrap;
   }
 
+  [hidden] { display: none !important; }
+
+  .acciones {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+  }
+  .btn-registros {
+    width: auto;
+    min-height: 40px;
+    padding-inline: 16px;
+    margin-top: 0;
+  }
+  .registros {
+    margin-bottom: 18px;
+    padding: 14px 16px;
+    background: var(--card);
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+  }
+  .registros h2 {
+    margin: 0 0 6px;
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+  .reg-lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  .reg-lista li {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 2px 12px;
+    padding-block: 8px;
+    border-top: 1px solid var(--line);
+    font-size: 1.1rem;
+  }
+  .reg-lista li:first-child { border-top: 0; }
+  .reg-nombre {
+    font-weight: 700;
+    text-transform: capitalize;
+  }
+  .reg-tiempo {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .reg-hora {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .reg-vacio {
+    margin: 0;
+    color: var(--muted);
+  }
+
   button {
     font: inherit;
     font-size: 1.05rem;
@@ -218,8 +281,16 @@
 <div class="wrap">
   <header>
     <h1>Cronómetros</h1>
-    <p id="resumen" aria-live="polite"></p>
+    <div class="acciones">
+      <p id="resumen" aria-live="polite"></p>
+      <button type="button" id="btn-registros" class="btn-registros" aria-expanded="false" aria-controls="registros">Registros</button>
+    </div>
   </header>
+
+  <section class="registros" id="registros" hidden aria-labelledby="reg-titulo">
+    <h2 id="reg-titulo">Registros</h2>
+    <ol class="reg-lista" id="reg-lista"></ol>
+  </section>
   <main class="grid" id="grid"></main>
 
   <section class="pagar" aria-labelledby="pagar-titulo">
@@ -268,6 +339,69 @@
   var fmtMin = new Intl.NumberFormat("es-AR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   var fmtPeso = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 });
 
+  // Registro de movimientos: { i: persona, tipo: inicia|pausa|reanuda, t: ms del cronómetro, ts: hora real }
+  var KEY_LOG = "cronometros-log-v1";
+  var registros = [];
+  try {
+    var guardadoLog = JSON.parse(localStorage.getItem(KEY_LOG) || "null");
+    if (Array.isArray(guardadoLog)) registros = guardadoLog;
+  } catch (e) {}
+
+  function guardarLog() {
+    try { localStorage.setItem(KEY_LOG, JSON.stringify(registros)); } catch (e) {}
+  }
+
+  function formatoSeg(ms) {
+    var seg = Math.floor(ms / 1000);
+    var h = Math.floor(seg / 3600);
+    var m = Math.floor((seg % 3600) / 60);
+    var s = seg % 60;
+    if (h > 0) return h + ":" + dos(m) + ":" + dos(s);
+    return dos(m) + ":" + dos(s);
+  }
+
+  var regLista = document.getElementById("reg-lista");
+
+  function pintarLog() {
+    regLista.textContent = "";
+    if (!registros.length) {
+      var vacio = document.createElement("li");
+      vacio.className = "reg-vacio";
+      vacio.textContent = "Todavía no hay movimientos.";
+      regLista.appendChild(vacio);
+      return;
+    }
+    for (var k = registros.length - 1; k >= 0; k--) {
+      var r = registros[k];
+      var li = document.createElement("li");
+      var izq = document.createElement("span");
+      var nom = document.createElement("span");
+      nom.className = "reg-nombre";
+      nom.textContent = NOMBRES[r.i];
+      var tiempo = document.createElement("span");
+      tiempo.className = "reg-tiempo";
+      tiempo.textContent = formatoSeg(r.t);
+      izq.appendChild(nom);
+      izq.appendChild(document.createTextNode(" " + r.tipo + " en "));
+      izq.appendChild(tiempo);
+      var hora = document.createElement("span");
+      hora.className = "reg-hora";
+      hora.textContent = new Date(r.ts).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      li.appendChild(izq);
+      li.appendChild(hora);
+      regLista.appendChild(li);
+    }
+  }
+
+  var btnReg = document.getElementById("btn-registros");
+  var panelReg = document.getElementById("registros");
+  btnReg.addEventListener("click", function () {
+    var abrir = panelReg.hidden;
+    panelReg.hidden = !abrir;
+    btnReg.setAttribute("aria-expanded", abrir ? "true" : "false");
+    btnReg.textContent = abrir ? "Ocultar registros" : "Registros";
+  });
+
   var grid = document.getElementById("grid");
   var resumen = document.getElementById("resumen");
   var refs = [];
@@ -292,13 +426,20 @@
     b.addEventListener("click", function () {
       var s = estado[i];
       var ahora = Date.now();
+      var ms = total(s, ahora);
+      var tipo;
       if (s.inicio === null) {
+        tipo = s.acc > 0 ? "reanuda" : "inicia";
         s.inicio = ahora;
       } else {
+        tipo = "pausa";
         s.acc += ahora - s.inicio;
         s.inicio = null;
       }
+      registros.push({ i: i, tipo: tipo, t: ms, ts: ahora });
       guardar();
+      guardarLog();
+      pintarLog();
       pintar();
     });
 
@@ -371,6 +512,7 @@
     actualizarPago(ahora);
   }
 
+  pintarLog();
   pintar();
   setInterval(pintar, 100);
 </script>
